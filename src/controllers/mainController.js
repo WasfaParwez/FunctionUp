@@ -15,18 +15,41 @@ const product= async function(req,res){
     res.send({msg:product})
 }
 
-
-const order= async function(req,res){
-    try {    const data2= req.body
-        const order= await orderModel.create(data2)
-        res.send({msg:order})
-        
+const order = async function(req, res) {
+    try {
+      const data2 = req.body;
+      const freeapp = req.headers["isfreeappuser"];
+  
+      if (freeapp === "true") {
+        data2.amount = 0;
+        data2.isFreeAppUser = true;
+      } else {
+        data2.isFreeAppUser = false;
+  
+        const balance = await userModel.findOneAndUpdate(
+          {
+            $and: [
+              { _id: data2.userId },
+              { balance: { $gte: data2.amount } }
+            ]
+          },
+          {
+            $inc: { balance: -data2.amount },
+            isFreeAppUser: false
+          },
+          { new: true }
+        );
+        if (!balance) {
+          return res.send({ msg: "balance low" }); 
+        }
+      }
+      const order = await orderModel.create(data2);
+      res.send({ msg: order }); 
     } catch (err) {
-        res.send({msg:err.message})
-        
-    }
-}
-
+      console.log(err);
+      res.status(500).send({ msg: "Internal server error" }); 
+  }};
+  
 
 module.exports.User=User
 module.exports.product=product
